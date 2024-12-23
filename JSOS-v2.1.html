@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>JavaScriptOS(GUI)</title>
+    <meta http-equiv="CONTENT-TYPE" content="charset=UTF-8">
+    <style>
+        body {
+            overflow: hidden;
+            margin: 0;
+        }
+
+        #screen {
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+
+        #desktop {
+            z-index: 0;
+            width: 100vw;
+            height: calc(98vh - 2.5vw);
+            margin: 0;
+            user-select: none;
+            background: gray no-repeat no-repeat;
+            background-position: center;
+            background-size: 10%;
+            background-image: url("javascript-os.png");
+        }
+
+        #actionbar {
+            width: 100%;
+            height: calc(2.5vw + 2vh);
+            background-color: rgb(50, 50, 50);
+            position: fixed;
+            bottom: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+        }
+
+        .actionBtn {
+            width: 4%;
+            height: 90%;
+            margin: 2px;
+            background: transparent no-repeat no-repeat;
+            background-position: center;
+            background-size: 60%;
+            outline: none;
+            border: none;
+            border-radius: 10px;
+        }
+
+        .actionBtn:hover {
+            background-color: rgb(30, 30, 30);
+        }
+
+        .actionbarinfo {
+            margin-left: auto;
+            margin-right: 1%;
+            white-space: pre;
+            text-align: center;
+            font-size: 90%;
+            color: white;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .window {
+            resize: both;
+            overflow: hidden;
+            border: black 1px solid;
+            border-radius: 10px;
+            box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.3);
+            background: lightgray;
+            min-width: 320px;
+            min-height: 200px;
+            position: absolute;
+            top: calc(50vh - 100px);
+            left: calc(50vw - 150px);
+        }
+
+        .window.maximized {
+            border-radius: 0;
+        }
+
+        .window-frame {
+            border: none;
+            width: calc(100% - 20px);
+            height: calc(100% - 55px);
+            margin: 10px;
+            border-radius: 10px;
+        }
+
+        .title-bar {
+            border-bottom: black 1px solid;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+            box-sizing: border-box;
+        }
+
+        .title-bar:active {
+            cursor: move;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .window-control {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: lightgray;
+            border: 1px solid black;
+            cursor: pointer;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-image: none;
+        }
+
+        .window-control:hover {
+            cursor: pointer;
+        }
+
+        .window-control.minimize:hover {
+            background-image: url("data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHdpZHRoPSI0Ny41MzI2MSIgaGVpZ2h0PSI0Ny41MzI2MSIgdmlld0JveD0iMCwwLDQ3LjUzMjYxLDQ3LjUzMjYxIj48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMjE2LjIzMzY5LC0xNTYuMjMzNykiPjxnIGRhdGEtcGFwZXItZGF0YT0ieyZxdW90O2lzUGFpbnRpbmdMYXllciZxdW90Ozp0cnVlfSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJub256ZXJvIiBzdHJva2UtbGluZWNhcD0iYnV0dCIgc3Ryb2tlLWxpbmVqb2luPSJtaXRlciIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiBzdHJva2UtZGFzaGFycmF5PSIiIHN0cm9rZS1kYXNob2Zmc2V0PSIwIiBzdHlsZT0ibWl4LWJsZW5kLW1vZGU6IG5vcm1hbCI+PHBhdGggZD0iTTIxNi4yMzM2OSwyMDMuNzY2MzF2LTQ3LjUzMjYxaDQ3LjUzMjYxdjQ3LjUzMjYxeiIgc3Ryb2tlPSJub25lIiBzdHJva2Utd2lkdGg9IjAiLz48cGF0aCBkPSJNMjMwLjE0ODY4LDE4MC45ODUxNHYtMS45NzAyN2gxOS43MDI2NHYxLjk3MDI3eiIgc3Ryb2tlPSIjMDAwMDAwIiBzdHJva2Utd2lkdGg9IjIiLz48L2c+PC9nPjwvc3ZnPg==");
+        }
+
+        .window-control.maximize:hover {
+            background-image: url("data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHdpZHRoPSI0Ny41MzI2MSIgaGVpZ2h0PSI0Ny41MzI2MSIgdmlld0JveD0iMCwwLDQ3LjUzMjYxLDQ3LjUzMjYxIj48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMjE2LjIzMzY5LC0xNTYuMjMzNykiPjxnIGRhdGEtcGFwZXItZGF0YT0ieyZxdW90O2lzUGFpbnRpbmdMYXllciZxdW90Ozp0cnVlfSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJub256ZXJvIiBzdHJva2UtbGluZWNhcD0iYnV0dCIgc3Ryb2tlLWxpbmVqb2luPSJtaXRlciIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiBzdHJva2UtZGFzaGFycmF5PSIiIHN0cm9rZS1kYXNob2Zmc2V0PSIwIiBzdHlsZT0ibWl4LWJsZW5kLW1vZGU6IG5vcm1hbCI+PHBhdGggZD0iTTIxNi4yMzM2OSwyMDMuNzY2MzF2LTQ3LjUzMjYxaDQ3LjUzMjYxdjQ3LjUzMjYxeiIgc3Ryb2tlPSJub25lIiBzdHJva2Utd2lkdGg9IjAiLz48cGF0aCBkPSJNMjMwLjE0ODY4LDE4OS44NTEzMnYtMTkuNzAyNjRoMTkuNzAyNjR2MTkuNzAyNjR6IiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMi41Ii8+PC9nPjwvZz48L3N2Zz4=");
+        }
+
+        .window-control.close:hover {
+            background-image: url("data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHdpZHRoPSI0Ny41MzI2MSIgaGVpZ2h0PSI0Ny41MzI2MSIgdmlld0JveD0iMCwwLDQ3LjUzMjYxLDQ3LjUzMjYxIj48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMjE2LjIzMzY5LC0xNTYuMjMzNykiPjxnIGRhdGEtcGFwZXItZGF0YT0ieyZxdW90O2lzUGFpbnRpbmdMYXllciZxdW90Ozp0cnVlfSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJub256ZXJvIiBzdHJva2UtbGluZWpvaW49Im1pdGVyIiBzdHJva2UtbWl0ZXJsaW1pdD0iMTAiIHN0cm9rZS1kYXNoYXJyYXk9IiIgc3Ryb2tlLWRhc2hvZmZzZXQ9IjAiIHN0eWxlPSJtaXgtYmxlbmQtbW9kZTogbm9ybWFsIj48cGF0aCBkPSJNMjE2LjIzMzY5LDIwMy43NjYzMXYtNDcuNTMyNjFoNDcuNTMyNjF2NDcuNTMyNjF6IiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMCIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiLz48cGF0aCBkPSJNMjQ5LjIxMjM2LDE4OS4yMTIzNmwtMTguNDI0NzIsLTE4LjQyNDcyIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTTI0OS4yMTIzNiwxNzAuNzg3NjRsLTE4LjQyNDcyLDE4LjQyNDcyIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9nPjwvZz48L3N2Zz4=");
+        }
+
+        .window-control.minimize {
+            background-color: rgb(255, 255, 0);
+        }
+
+        .maximize {
+            background-color: rgb(0, 255, 0);
+        }
+
+        .close {
+            background-color: rgb(255, 0, 0);
+        }
+    </style>
+    <script src="kernel-v1.0.js"></script>
+</head>
+
+<body>
+    <div id="screen">
+        <div id="desktop"></div>
+        <div id="actionbar">
+        </div>
+    </div>
+    <script>
+
+        var screen = document.querySelector('#screen');
+        var processes = [];
+        var Apps = [];
+        var guiApps = [{ name: 'JavascriptOS Hub', run: '/run/hub', icon: 'javascript-os.png', permissions: [{ name: 'fs', write: true, ref: 'fs' }, { name: 'processes', write: true, ref: 'processes' }, { name: 'Apps', write: true, ref: 'Apps' }] }, { name: 'Terminal', run: '/run/terminal', icon: 'terminal.png', permissions: [{ name: 'fs', write: true, ref: 'fs' }, { name: 'pathToNode', write: false, ref: pathToNode }, { name: 'fileOfPath', write: false, ref: fileOfPath }, { name: 'parentDirOf', write: false, ref: parentDirOf }] }, { name: 'Calculator', run: '/run/calculator', icon: 'calculator.png', permissions: [] }, { name: 'Notes', run: '/run/notes', icon: 'notes.png', permissions: [] }, { name: 'Camera', run: '/run/camera', icon: 'camera.png', permissions: [] }];
+        guiApps.forEach(obj => {
+            Apps.push({ name: obj.name, icon: obj.icon, run: obj.run, permissions: obj.permissions.map(({ name, write, ref }) => (typeof (ref) == "function") ? ({ name, write }) : ({ name, write, ref })) });
+        })
+        // generate actionBtns
+        // let menuBtn = document.createElement('button');
+        // menuBtn.className = 'actionBtn';
+        // document.querySelector('#actionbar').appendChild(menuBtn);
+        // menuBtn.style.backgroundImage = 'url("javascript-os.png")';
+
+        guiApps.forEach((app, index) => {
+            let actionBtn = document.createElement('button');
+            actionBtn.className = 'actionBtn';
+            actionBtn.id = index;
+            actionBtn.title = app.name;
+            actionBtn.addEventListener('click', () => {
+                let appObj = guiApps[actionBtn.id];
+                if (processes.findIndex(obj => obj.location == appObj.run) == -1) {
+                    let newpid = processes.length;
+                    processes.push({ pid: newpid, location: appObj.run, token: generateWindowToken() });
+                    makeWindow(appObj.name, pathToNode(appObj.run).contents, processes[processes.length - 1], appObj.permissions);
+                }
+                else {
+                    document.getElementById(JSON.stringify(processes[processes.findIndex(obj => obj.location == appObj.run)])).style.zIndex = findHighestZIndex() + 1;
+                }
+            });
+            document.querySelector('#actionbar').appendChild(actionBtn);
+            actionBtn.style.backgroundImage = `url(${app.icon})`.toLowerCase();
+        });
+
+        const timelabel = document.createElement('div');
+        timelabel.className = 'actionbarinfo';
+        timelabel.id = 'timelabel';
+        timelabel.innerHTML = '00:00\n00/00/0000';
+        document.querySelector('#actionbar').appendChild(timelabel);
+
+        function makeWindow(title, doc, process, permissions = []) {
+            var win = document.createElement('div');
+            win.id = JSON.stringify(process);
+            win.className = 'window';
+            win.innerHTML = `
+                <div class='title-bar'>
+                    <b class='title'>${title}</b>
+                    <div class='window-controls'>
+                        <div class='window-control minimize'></div>
+                        <div class='window-control maximize'></div>
+                        <div class='window-control close'></div>
+                    </div>
+                </div>
+                <iframe class='window-frame' src='data:text/html;base64,PHNjcmlwdD4gd2luZG93LmZ1bmN0aW9ucyA9IFtdOyB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcigibWVzc2FnZSIsIGZ1bmN0aW9uKGV2ZW50KSB7dmFyIGRhdGEgPSBldmVudC5kYXRhOyB3aW5kb3cudG9rZW4gPSBkYXRhLnRva2VuOyBkYXRhLnZhcnMuZm9yRWFjaCh2YXJpYWJsZSA9PiB7IGlmICh0eXBlb2YodmFyaWFibGUucmVmKSA9PSAic3RyaW5nIikgeyB3aW5kb3dbdmFyaWFibGUubmFtZV0gPSBldmFsKCIgKCIgKyB2YXJpYWJsZS5yZWYuc3BsaXQoIikiKVswXS5zcGxpdCgiKCIpWzFdICsgIikgPT4gIiArIHZhcmlhYmxlLnJlZi5zcGxpdCgiKSIpLnNsaWNlKDEpLmpvaW4oIikiKSk7IH0gZWxzZSB7IHdpbmRvd1t2YXJpYWJsZS5uYW1lXSA9IHZhcmlhYmxlLnJlZjsgfSB9KTsgZG9jdW1lbnQud3JpdGUoZGF0YS5kb2N1bWVudCk7IH0pOyA8L3NjcmlwdD4='></iframe>
+                `;
+            screen.appendChild(win);
+            var iframe = win.querySelector('.window-frame');
+            // listen for clicks inside window -> focus window
+            win.addEventListener('mousedown', (event) => {
+                const parentWin = event.currentTarget;
+                parentWin.style.zIndex = findHighestZIndex() + 1;
+            });
+
+            // listeners for window control buttons
+
+            win.querySelector('.close').addEventListener('click', (event) => {
+                processes.splice(processes.findIndex(obj => obj.pid == JSON.parse(win.id).pid), 1);
+                win.parentElement.removeChild(win);
+            });
+
+            win.querySelector('.minimize').addEventListener('click', (event) => {
+                win.style.zIndex = -1;
+            });
+
+            var winBackup;
+            win.querySelector('.maximize').addEventListener('click', (event) => {
+                if (win.classList.contains('maximized')) {
+                    win.classList.remove('maximized');
+                    win.style.resize = 'both';
+                    restoreOldWin('all');
+                }
+                else {
+                    winBackup = [win.style.top, win.style.left, win.style.width, win.style.height];
+                    win.style.top = '0';
+                    win.style.left = '0';
+                    win.style.width = '100%';
+                    win.style.height = 'calc(100% - 50px)';
+                    win.style.resize = 'none';
+                    win.classList.add('maximized');
+                }
+
+            });
+            function restoreOldWin(type, x, y) {
+                if (type == 'shape') {
+                    win.style.width = winBackup[2];
+                    win.style.height = winBackup[3];
+                    win.style.top = y;
+                    win.style.left = x;
+                }
+                else if (type == 'pos') {
+                    win.style.top = winBackup[0];
+                    win.style.left = winBackup[1];
+                }
+                else {
+                    win.style.top = winBackup[0];
+                    win.style.left = winBackup[1];
+                    win.style.width = winBackup[2];
+                    win.style.height = winBackup[3];
+                }
+            }
+
+            var data = { vars: [], document: '', token: process.token };
+            permissions.forEach((permission) => {
+                if (typeof (permission.ref) == "function") {
+                    data.vars.push({ name: permission.name, ref: Function.prototype.toString.call(permission.ref) });
+                }
+                else {
+                    data.vars.push({ name: permission.name, ref: window[permission.ref] });
+                }
+            });
+
+            // load the document
+            setTimeout(() => {
+                data.document = doc;
+                console.log(data);
+                iframe.contentWindow.postMessage(data, '*');
+                // iframe.contentDocument.write(doc);
+                // iframe.addEventListener('beforeunload', () => {
+                //     processes.splice(processes.findIndex(obj => obj.pid == win.id), 1);
+                //     win.parentElement.removeChild(win);
+                // });
+                // if (iframe.contentDocument.title) {
+                //     win.querySelector('.title').innerText = iframe.contentDocument.title;
+                // }
+            }, 50);
+
+            var titlebar = win.querySelector('.title-bar');
+            var isDragging = false;
+            var offsetX, offsetY;
+
+            titlebar.addEventListener('mousedown', (event) => {
+                if (win.classList.contains('maximized') && event.target !== win.querySelector('.window-controls') && !win.querySelector('.window-controls').contains(event.target)) {
+                    win.classList.remove('maximized');
+                    win.style.resize = 'both';
+                    restoreOldWin('shape', (event.clientX - offsetX) + 'px', (event.clientY - offsetY) + 'px');
+                }
+                isDragging = true;
+                offsetX = event.clientX - win.getBoundingClientRect().left;
+                offsetY = event.clientY - win.getBoundingClientRect().top;
+
+                // Disable pointer events on the iframe during drag
+                Array.from(document.getElementsByClassName('window-frame')).forEach(frame => { frame.style.pointerEvents = "none"; });
+
+
+                const onMouseMove = (event) => {
+                    if (isDragging) {
+                        win.style.left = (event.clientX - offsetX) + 'px';
+                        win.style.top = (event.clientY - offsetY) + 'px';
+                    }
+                };
+
+                const onMouseUp = () => {
+                    isDragging = false;
+                    // Enable pointer events on the iframe after drag
+                    Array.from(document.getElementsByClassName('window-frame')).forEach(frame => { frame.style.pointerEvents = "auto"; });
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+            //focus the window
+            win.style.zIndex = window.parent.findHighestZIndex() + 1;
+        }
+
+        function findHighestZIndex() {
+            res = 0;
+            allwindows = document.getElementsByClassName('window');
+            for (var i = 0; i < allwindows.length; i++) {
+                if (parseInt(allwindows[i].style.zIndex) > res) {
+                    res = parseInt(allwindows[i].style.zIndex);
+                }
+            }
+            return parseInt(res);
+        }
+
+        // JSTP Request handling
+        window.addEventListener('message', (event) => {
+            var req = event.data;
+            respond = (status, body, ok = true, origin = '*') => { let data = { status: status, body: body, ok: ok }; event.source.postMessage(data, origin); };
+
+            if (req.token) {
+                if (processes.findIndex(process => process.token == req.token) == -1) {
+                    respond(403, 'Invalid token', false);
+                    return;
+                }
+            }
+            else {
+                respond(403, 'Provide token', false);
+                return;
+            }
+
+            // find source guiApp from request's token
+            var res = {};
+            res.process = processes[processes.findIndex(obj => obj.token == req.token)];
+            res.app = guiApps[guiApps.findIndex(app => app.run == res.process.location)];
+            console.log(res);
+
+            if (req.method) {
+                switch (req.method.toUpperCase()) {
+                    case 'GET':
+                        if (res.app.permissions.findIndex(permission => permission.name == req.value) !== -1) {
+                            respond(200, window[req.value]);
+                        }
+                        else {
+                            respond(403, 'Forbidden', false);
+                        }
+                        break;
+                    case 'UPDATE':
+                        if (res.app.permissions.findIndex(permission => permission.name == req.value) !== -1) {
+                            if (res.app.permissions[res.app.permissions.findIndex(permission => permission.name == req.value)].write) {
+                                if (req.newvalue) {
+                                    respond(200, req.newvalue);
+                                    window[req.value] = req.newvalue;
+                                }
+                                else {
+                                    respond(400, 'Bad request', false);
+                                }
+                            }
+                            else {
+                                respond(403, 'Forbidden', false);
+                            }
+                        }
+                        else {
+                            respond(403, 'Forbidden', false);
+                        }
+                        break;
+                    case 'HANDSHAKE':
+                        respond(200, window.location.href);
+                        break;
+                    default:
+                        respond(400, 'Bad request', false);
+                        break;
+                }
+            }
+            else {
+                respond(400, 'Bad request', false);
+            }
+        });
+
+        function generateWindowToken() {
+            return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        }
+
+        function IntMinDigits(number, mindigits) {
+            var res = number.toString();
+            while (res.length < mindigits) {
+                res = "0" + res;
+            }
+            return res;
+        }
+
+        function updateTime() {
+            const time = new Date();
+            document.querySelector('#timelabel').innerHTML = `${IntMinDigits(time.getHours(), 2)}:${IntMinDigits(time.getMinutes(), 2)}:${IntMinDigits(time.getSeconds(), 2)}\n${IntMinDigits(time.getDate(), 2)}/${IntMinDigits(time.getMonth() + 1, 2)}/${IntMinDigits(time.getFullYear(), 2)}`;
+        }
+
+        setInterval(updateTime, 1000);
+    </script>
+
+</body>
+
+</html>

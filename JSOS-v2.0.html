@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv='CONTENT-TYPE' content='charset=UTF-8'>
+    <link rel='icon' href='javascript-os.png'>
+    <script src='kernel-v1.0.js'></script>
+    <style>
+        :hover {
+            cursor: text;
+        }
+
+        body {
+            background-color: black;
+            font-family: 'Courier New', Courier, monospace, serif;
+            color: white;
+            font-size: 16px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            white-space: pre-line;
+        }
+
+        .input {
+            outline: none;
+            margin-left: 5px;
+            color: white;
+        }
+
+        span {
+            color: yellow;
+            margin: 0;
+        }
+
+        .texteditor {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            background: none;
+            outline: none;
+            color: inherit;
+            font: inherit;
+            overflow-wrap: break-word;
+        }
+    </style>
+    <script> var user = 'user'; var host = (window.location.host ? window.location.host : 'localhost'); var historyIndex = 0; var homedir
+            = `/home/${user}`; var pwd = homedir; let history = []; var PATH = ['/js']; var inpstyle = 0; var fvars = [{ name: '~', value: 'homedir' }, {
+                name:
+                    './', value: 'pwd + \'/\''
+            }]; var aliases = []; function NewCommandLine() {
+                const newline =
+                    document.createElement('span'); newline.className = 'input'; newline.contentEditable = 'true';
+                newline.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); let
+                            commands = newline.innerText.split('&'); commands.forEach(command => {
+                                printOutput(HandleCommand(parseVars(command)), 'html');
+                            }); if (history[history.length - 1] !==
+                                newline.innerText && newline.innerText) { history.push(newline.innerText); } NewCommandLine(); historyIndex =
+                                    history.length; focuslastinp();
+                    } else if (event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        surfhistory(historyIndex, -1)
+                    } else if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        surfhistory(historyIndex, 1);
+                    }
+                }); const marker = document.createElement('label'); marker.innerHTML = inpstyle == 1 ? `┌──(<span>${user}@${host}</span>)─[${pwd.replaceAll(homedir, '~')}]<br>└─<span>$</span>` : `<span>${user}@${host}</span>:${pwd.replaceAll(homedir, '~')}<span>$</span>`;
+                document.body.appendChild(marker); document.body.appendChild(newline);
+                document.body.appendChild(document.createElement('br'));
+            } function surfhistory(current, change) {
+                if
+                    (history.length == 0) { return; } var inputs = document.getElementsByClassName('input'); const lastinput =
+                        inputs[inputs.length - 1]; if (change == -1) { if (current > 0) { historyIndex--; } else { historyIndex = 0; } }
+                else { if (current < history.length - 1) { historyIndex++; } else { lastinput.innerText = ''; return; } }
+                lastinput.innerText = history[historyIndex]; moveCursorToEnd(lastinput);
+            } function focuslastinp() {
+                var
+                    inputs = document.getElementsByClassName('input'); if (inputs.length == 0) { NewCommandLine(); }
+                inputs = document.getElementsByClassName('input'); const lastinput = inputs[inputs.length - 1];
+                lastinput.focus(); moveCursorToEnd(lastinput);
+            } function moveCursorToEnd(element) {
+                var
+                    range = document.createRange(); var selection = window.getSelection(); range.selectNodeContents(element);
+                range.collapse(false); selection.removeAllRanges(); selection.addRange(range);
+            } function
+            HandleCommand(command) {
+            if (!command.trim()) { return ''; } let cmd; let args; if (command.includes('>')) {
+                cmd = command.split('>')[0].trim().split(' ')[0]; args = command.split('>')[0].trim().split(' ').slice(1);
+            } else { cmd = command.trim().split(' ')[0]; args = command.trim().split(' ').slice(1); } let opts =
+                parseOpts(args); let nopts = []; args.forEach(arg => {
+                    if (opts.findIndex(obj => obj.opt == arg &&
+                        !arg.startsWith('-')) !== -1) { nopts.push(arg); }
+                }); console.log(opts); console.log(nopts); var cmdrun =
+                    ''; var stdout = `${cmd}: command not found`; PATH.forEach(path => {
+                        if (doesExist(`${path}/${cmd}`,
+                            'file').exists) { stdout = ''; cmdrun = pathToNode(`${path}/${cmd}`).contents; return; }
+                    });
+            PATH.forEach(path => {
+                if (aliases.findIndex(obj => obj.alias == cmd) !== -1) {
+                    if
+                        (doesExist(`${path}/${aliases[aliases.findIndex(obj => obj.alias == cmd)].ref}`, 'file').exists) {
+                        stdout = ''; cmdrun = pathToNode(`${path}/${aliases[aliases.findIndex(obj => obj.alias ==
+                            cmd)].ref}`).contents;
+                    } else {
+                        stdout = `${aliases[aliases.findIndex(obj => obj.alias == cmd)].ref}:
+            command not found`;
+                    } return;
+                }
+            }); eval(cmdrun); if (command.includes('>')) {
+                let targetfile =
+                    command.split('>')[1].trim(); if (command.includes('>>')) {
+                        targetfile = command.split('>')[2].trim();
+                        console.log('>>'); if (doesExist(parentDirOf(findRelativePath(targetfile)), 'directory').exists) {
+                            if
+                                (doesExist(findRelativePath(targetfile), 'file').exists) {
+                                pathToNode(findRelativePath(targetfile)).contents
+                                    += `<br>${stdout}`;
+                            } else {
+                                pathToNode(parentDirOf(findRelativePath(targetfile))).contents.push({
+                                    name:
+                                        fileOfPath(findRelativePath(targetfile)), type: 'file', contents: stdout
+                                });
+                            }
+                        } else {
+                            stdout =
+                                doesExist(parentDirOf(findRelativePath(targetfile)), 'directory').message;
+                        }
+                    } else {
+                    if
+                        (doesExist(parentDirOf(findRelativePath(targetfile)), 'directory').exists) {
+                        if
+                            (doesExist(findRelativePath(targetfile), 'file').exists) {
+                            pathToNode(findRelativePath(targetfile)).contents
+                                = stdout;
+                        } else {
+                            pathToNode(parentDirOf(findRelativePath(targetfile))).contents.push({
+                                name:
+                                    fileOfPath(findRelativePath(targetfile)), type: 'file', contents: stdout
+                            });
+                        }
+                    } else {
+                        stdout =
+                            doesExist(parentDirOf(findRelativePath(targetfile)), 'directory').message;
+                    }
+                }
+            } return stdout;
+        }
+        function parseVars(string) {
+            let res = eval('`' + string.replaceAll(/\$(\w+)/g, (match, varName) =>
+            (window.hasOwnProperty(varName) ? (eval(varName).includes(' ') ? `'${eval(varName)}'` : eval(varName)) :
+                '')) + '`'); fvars.forEach(fvar => { res = res.replaceAll(fvar.name, eval(fvar.value)); }); return res;
+        }
+        function printOutput(output) {
+            const div = document.createElement('div'); div.innerHTML = output;
+            div.innerHTML += '<br><br>'; document.body.appendChild(div);
+        } function parseOpts(args) {
+            let res = [];
+            args.forEach((arg, i) => {
+                if (args[i].startsWith('-')) {
+                    if (args[i].startsWith('--')) {
+                        res.push({
+                            opt:
+                                args[i], value: (args[i + 1] && !args[i + 1].startsWith('-') ? args[i + 1] : '')
+                        })
+                    } else {
+                        if
+                            (args[i].slice(1).length > 1) {
+                            args[i].slice(1).split('').forEach(option => {
+                                res.push({
+                                    opt: `-${option}`,
+                                    value: ''
+                                });
+                            })
+                        } else { res.push({ opt: args[i], value: (args[i + 1] ? args[i + 1] : '') }) }
+                    }
+                } else if
+                    (i == 0 || !args[i - 1].startsWith('--')) { res.push({ opt: args[i], value: '' }) }
+            }); return res;
+        }
+        function findRelativePath(path) {
+            if (!path) { return pwd; } if (path == '/') { return '/'; } if
+                (path.endsWith('/')) { path = path.slice(0, -1); } let res = (pwd == '/' ? pwd : path.startsWith('/') ? '' :
+                    pwd + '/') + path;
+            const segments = res.split('/'); const stack = [];
+            segments.forEach(segment => {
+                if (segment === '..') {
+                    stack.pop();
+                } else if (segment !== '.' && segment !== '') {
+                    stack.push(segment);
+                }
+            });
+            res = '/' + stack.join('/'); if (res == '') { res = '/'; }
+            return res;
+        }
+        function doesExist(file, type) {
+            if (!file) { return { exists: false, message: 'Specify a file or directory' }; } if
+                (file.endsWith('/') && file !== '/') { file = file.slice(0, -1); } if (!pathToNode(file)) {
+                    return {
+                        exists:
+                            false, message: `${file}: No such file or directory`
+                    };
+                } if (type !== 'file' && type !== 'directory') {
+                    return { exists: true, message: '' };
+                } if (type === eval(pathToNode(file)).type) {
+                    return {
+                        exists: true,
+                        message: ''
+                    };
+                } else if (type === 'file') { return { exists: false, message: `${file}: is a directory` }; }
+            else { return { exists: false, message: `${file}: is not a directory` }; }
+        } </script>
+</head>
+
+<body></body>
+<script> HandleCommand(parseVars('source ~/.jshrc')); NewCommandLine(); focuslastinp(); window.addEventListener('click', focuslastinp); document.body.spellcheck =
+        false; 
+</script>
+
+</html>

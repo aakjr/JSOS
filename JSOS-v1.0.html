@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>JavaScript OS (CLI)</title>
+    <meta http-equiv="CONTENT-TYPE" content="charset=UTF-8">
+    <link rel="icon" href="javascript-os.png">
+    <style>
+        body {
+            background-color: black;
+            color: lime;
+            font-family: 'Courier New', Courier, monospace, serif;
+        }
+
+        .input {
+            outline: none;
+        }
+
+        :hover {
+            cursor: text;
+        }
+    </style>
+    <script type="text/javascript">
+        let pwd = '/';
+        let user = 'user';
+        let host = 'localhost';
+        let allowedVars = ['pwd', 'user']
+        var historyIndex = 0;
+        let history = [];
+
+        function NewCommandLine() {
+            const newline = document.createElement('span');
+            newline.className = 'input';
+            newline.contentEditable = 'true';
+            newline.spellcheck = false;
+            newline.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+
+                    let commands = newline.innerText.split('&');
+                    commands.forEach(command => {
+                        HandleCommand(command);
+                    });
+
+                    history.push(newline.innerText);
+                    NewCommandLine();
+                    historyIndex = history.length;
+                    focuslastinp();
+                }
+                else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    surfhistory(historyIndex, -1)
+                }
+                else if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    surfhistory(historyIndex, 1);
+                }
+            })
+            const marker = document.createElement('span');
+            marker.innerHTML = `┌──(<span style="color: #40f;">${user}@${host}</span>)-[${pwd}]<br>└─<span style="color: #40f;">$</span> `;
+            document.body.appendChild(marker);
+            document.body.appendChild(newline);
+            document.body.appendChild(document.createElement('br'));
+        }
+
+        function surfhistory(current, change) {
+            if (history.length == 0) { return; }
+            var inputs = document.getElementsByClassName('input');
+            const lastinput = inputs[inputs.length - 1];
+            if (change == -1) {
+                if (current > 0) {
+                    historyIndex--;
+                }
+                else {
+                    historyIndex = 0;
+                }
+            }
+            else {
+                if (current < history.length - 1) {
+                    historyIndex++;
+                }
+                else {
+                    lastinput.innerText = '';
+                    return;
+                }
+            }
+            lastinput.innerText = history[historyIndex];
+            moveCursorToEnd(lastinput);
+        }
+
+        async function HandleCommand(command) {
+            if (command.trim() == '') { return; }
+            let args = command.trim().split(' ');
+            let cmd = args[0];
+            switch (cmd) {
+                case 'bye':
+                case 'exit':
+                case 'quit':
+                    self.close();
+                    break;
+                case 'assist':
+                    if (args[1]) {
+                        if (doesExist('/system/assist_messages/' + args[1], 'file').exists) {
+                            printOutput(eval(RJS('/system/assist_messages/' + args[1])).contents);
+                        }
+                        else {
+                            printOutput(`command not found: ${args[1]}`);
+                        }
+                        break;
+                    }
+                    if (doesExist('/system/assist', 'file').exists) {
+                        printOutput(eval(RJS('/system/assist')).contents, 'html');
+                    }
+                    else { printOutput('Assist message file has been moved or deleted.') }
+                    break;
+                case 'pwd':
+                    printOutput(pwd);
+                    break;
+                case 'rm':
+                    if (doesExist(`${findRelPath(args[1])}`, 'file').exists) {
+                        eval(RJS(parentDirOf(findRelPath(args[1])))).contents.splice([eval(RJS(parentDirOf(findRelPath(args[1])))).contents.findIndex(obj => obj.name === fileOfPath(args[1]) && obj.type === 'file')], 1);
+                    }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'file').message); }
+                    break;
+                case 'rmdir':
+                    if (doesExist(`${findRelPath(args[1])}`, 'directory').exists) {
+                        eval(RJS(parentDirOf(findRelPath(args[1])))).contents.splice([eval(RJS(parentDirOf(findRelPath(args[1])))).contents.findIndex(obj => obj.name === fileOfPath(args[1]) && obj.type === 'directory')], 1);
+                    }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'directory').message); }
+                    break;
+                case 'touch':
+                    if (doesExist(parentDirOf(findRelPath(args[1])), 'directory').exists) {
+                        eval(RJS(parentDirOf(findRelPath(args[1])))).contents.push({ type: 'file', name: fileOfPath(args[1]), contents: args.slice(2).join(' ') });
+                    }
+                    else { printOutput('Destination directory does not exist.') }
+                    break;
+                case 'mkdir':
+                    if (doesExist(parentDirOf(findRelPath(args[1])), 'directory').exists) {
+                        eval(RJS(parentDirOf(findRelPath(args[1])))).contents.push({ type: 'directory', name: fileOfPath(args[1]), contents: [] });
+                    }
+                    else { printOutput('Destination directory does not exist.') }
+                    break;
+                case 'edit':
+                    if (doesExist(findRelPath(args[1]), 'file').exists) {
+                        eval(RJS(findRelPath(args[1]))).contents = args.slice(2).join(' ');
+                    }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'file').message) }
+                    break;
+                case 'ls':
+                case 'dir':
+                    if (doesExist(findRelPath(args[1]), 'directory').exists) {
+                        printOutput(eval(RJS(findRelPath(args[1]))).contents.map(obj => `<span style="font-weight: ${obj.type === 'directory' ? 'bold' : obj.weight};">${obj.name}</span>`).join('\n'), 'html');
+                    }
+                    else {
+                        printOutput(doesExist(findRelPath(args[1]), 'directory').message);
+                    }
+                    break;
+                case 'tree':
+                    if (doesExist(findRelPath(args[1]), 'directory').exists) { printOutput(printTree(eval(RJS(findRelPath(args[1]))), '', '').replaceAll(/\n/g, '<br>'), 'html') }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'directory').message) }
+                    break;
+                case 'js':
+                    printOutput(eval(args.slice(1).join(' ')));
+                    break;
+                case 'history':
+                    printOutput(history.join('<br>'), 'html');
+                    break;
+                case 'nav':
+                    window.open(args.slice(1).join(' '));
+                    break;
+                case 'ip':
+                    printOutput('Attempting to fetch your public IP Address...')
+                    const ip = await getPublicIP();
+                    printOutput(ip);
+                    break;
+                case 'save':
+                    localStorage.setItem('fs-save-point', JSON.stringify(fs));
+                    localStorage.setItem('fs-save-point-date', new Date());
+                    break;
+                case 'reset':
+                    localStorage.removeItem('fs-save-point');
+                    localStorage.removeItem('fs-save-point-date')
+                    break;
+                case 'info':
+                    printInfo();
+                    break;
+                case 'revert':
+                    if (localStorage.getItem('fs-save-point')) { revertToLastSavePoint(); printOutput(`Reverted to last save point: ${localStorage.getItem('fs-save-point-date')}`) }
+                    else { printOutput('No save points to revert to.') }
+                    break;
+                case 'import':
+                    if (!args[1]) { printOutput('Specify name for the new file.'); break; }
+                    if (!doesExist(parentDirOf(findRelPath(args[1])), 'directory').exists) { printOutput(doesExist(parentDirOf(findRelPath(args[1])), 'directory').message); break; }
+                    let fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.click();
+                    fileInput.onchange = function (event) {
+                        let fileContents;
+                        readTextFile(fileInput, function (fileContents) {
+                            const file = event.target.files[0];
+                            const fileType = file.type;
+                            eval(RJS(parentDirOf(findRelPath(args[1])))).contents.push({ type: 'file', name: fileOfPath(findRelPath(args[1])), contents: fileContents, ext: fileType }); //fileContents.replaceAll(/\n/g, '<br>')
+                        });
+                    }
+                    break;
+                case 'export':
+                    if (doesExist(findRelPath(args[1]), 'file').exists) {
+                        let fileDownload = document.createElement('a');
+                        fileDownload.setAttribute('download', fileOfPath(findRelPath(args[1])));
+                        fileDownload.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(eval(RJS(findRelPath(args[1]))).contents));
+                        fileDownload.click();
+                    }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'file').message); }
+                    break;
+                case 'ren':
+                    if (doesExist(findRelPath(args[1]), 'any').exists) { eval(RJS(findRelPath(args[1]))).name = args[2]; }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'any').message); }
+                    break;
+                case 'cp':
+                case 'copy':
+                    if (doesExist(findRelPath(args[1]), 'any').exists && doesExist(parentDirOf(findRelPath((args[2]))))) { eval(RJS(parentDirOf(findRelPath((args[2]))))).contents.push({ type: eval(RJS(findRelPath(args[1]))).type, name: fileOfPath(findRelPath(args[2])), contents: eval(RJS(findRelPath(args[1]))).contents }); }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'any').message); }
+                    break;
+                case 'mv':
+                case 'move':
+                    if (doesExist(findRelPath(args[1]), 'any').exists && doesExist(parentDirOf(findRelPath((args[2]))))) { eval(RJS(parentDirOf(findRelPath((args[2]))))).contents.push({ type: eval(RJS(findRelPath(args[1]))).type, name: fileOfPath(findRelPath(args[2])), contents: eval(RJS(findRelPath(args[1]))).contents }); eval(RJS(parentDirOf(findRelPath(args[1])))).contents.splice([eval(RJS(parentDirOf(findRelPath(args[1])))).contents.findIndex(obj => obj.name === fileOfPath(args[1]))], 1); }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'any').message); }
+                    break;
+                case 'open':
+                    if (doesExist(findRelPath(args[1]), 'file').exists) {
+                        var content = eval(RJS(findRelPath(args[1]))).contents;
+                        var blob = new Blob([content], { type: eval(RJS(findRelPath(args[1]))).ext ? eval(RJS(findRelPath(args[1]))).ext : 'text/plain' });
+                        var url = URL.createObjectURL(blob);
+                        window.open(url);
+                    }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'file').message); }
+                    break;
+                case 'read':
+                    if (doesExist(findRelPath(args[1]), 'file').exists) {
+                        printOutput(eval(RJS(findRelPath(args[1]))).contents);
+                    }
+                    else { printOutput(doesExist(findRelPath(args[1]), 'any').message); }
+                    break;
+                case 'clear':
+                    document.body.innerHTML = null;
+                    break;
+                case 'echo':
+                    printOutput(args.slice(1).join(' ').replaceAll(/\$(\w+)/g, (match, varName) => allowedVars.includes(varName) ? eval(varName) : ''));
+                    break;
+                case 'cd':
+                    const pwdBackup = pwd;
+                    let directory = args[1];
+                    if (args.length !== 2) {
+                        printOutput('Invalid command format.');
+                    } else {
+                        if (directory === '..') {
+                            if (pwd === '/') {
+                                printOutput('Cannot navigate beyond root directory.');
+                            } else {
+                                let pwdArray = pwd.split('/');
+                                pwdArray.pop();
+                                pwd = pwdArray.length === 1 ? '/' : pwdArray.join('/');
+                            }
+                        } else if (directory.startsWith('/')) {
+                            pwd = directory;
+                        } else {
+                            if (!pwd.endsWith('/')) {
+                                pwd += '/';
+                            }
+                            let newPath = pwd + directory;
+                            if (newPath.startsWith('/../') || newPath.startsWith('///')) {
+                                printOutput('Invalid directory.');
+                            } else {
+                                let parts = newPath.split('/');
+                                let newParts = [];
+                                for (let part of parts) {
+                                    if (part === '..') {
+                                        if (newParts.length > 1) {
+                                            newParts.pop();
+                                        } else {
+                                            printOutput('Cannot navigate beyond root directory.');
+                                            break;
+                                        }
+                                    } else {
+                                        newParts.push(part);
+                                    }
+                                }
+                                pwd = newParts.join('/');
+                            }
+                        }
+                    }
+
+                    if (RJS(pwd) === undefined) {
+                        pwd = pwdBackup;
+                        printOutput('Directory does not exist.');
+                    }
+                    break;
+                default:
+                    printOutput(`command not found: ${cmd}`);
+            };
+        }
+
+        function focuslastinp() {
+            var inputs = document.getElementsByClassName('input');
+            if (inputs.length == 0) { NewCommandLine(); }
+            inputs = document.getElementsByClassName('input');
+            const lastinput = inputs[inputs.length - 1];
+            lastinput.focus();
+            moveCursorToEnd(lastinput);
+        }
+
+        function printOutput(output, format) {
+            const div = document.createElement("div");
+            if (format == 'html') { div.innerHTML = output; } //actual html content, only in case of using tags like '<br>'
+            else { div.textContent = output; } //plain text
+            div.innerHTML += '<br><br>';
+            document.body.appendChild(div);
+        }
+
+        function RJS(RPath) {
+            if (RPath == '/') { return 'fs'; }
+            RPath = RPath.slice(1);
+            if (RPath.endsWith('/')) { RPath = RPath.slice(0, -1) }
+            let RDirs = RPath.split('/');
+            let res = 'fs';
+            for (var i = 0; i < RDirs.length; i++) {
+                if (eval(res).contents.length > 0 && RDirs[i].length > 0 && RDirs[i] !== '..') {
+                    res += `.contents[${eval(res).contents.findIndex(obj => obj.name === RDirs[i])}]`;
+                }
+                else if (RDirs[i] == '..') {
+                    res = res.split('.').slice(0, -1).join('.');
+                }
+                else { return undefined; }
+            }
+            if (res.includes('-1')) { res = undefined; }
+            return res;
+        }
+
+        function doesExist(file, type) {
+            if (!file) { return { exists: false, message: 'Specify a file or directory' }; }
+            if (file.endsWith('/') && file !== '/') { file = file.slice(0, -1); }
+            if (!RJS(file)) { return { exists: false, message: `${file}: No such file or directory` }; }
+            if (type === 'any') { return { exists: true, message: '' }; }
+            if (type === eval(RJS(file)).type) {
+                return { exists: true, message: '' };
+            }
+            else if (type === 'file') { return { exists: false, message: `${file}: is a directory` }; }
+            else { return { exists: false, message: `${file}: is not a directory` }; }
+        }
+
+        function findRelPath(file) {
+            if (!file) { return pwd; }
+            let res;
+            if (file.startsWith('/')) { res = file; }
+            else { if (pwd == '/') { res = `${pwd}${file}`; } else { res = `${pwd}/${file}`; } }
+            return res;
+        }
+
+        function parentDirOf(file) { if (file.split('/').slice(0, -1).join('/') == '') { return '/'; } return file.split('/').slice(0, -1).join('/'); }
+
+        function fileOfPath(path) { let pathSegmentsLength = path.split('/').length; return path.split('/')[pathSegmentsLength - 1] }
+
+        function moveCursorToEnd(element) {
+            var range = document.createRange();
+            var selection = window.getSelection();
+            range.selectNodeContents(element);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        function printInfo() {
+            printOutput(`<br>&copy; 2024 JavaScriptOS shell (CLI)<br>Distribution: BETA<br>Parent OS: ${navigator.platform}<br>Engine: ${navigator.appCodeName} (${navigator.appName})<br><br>For a list of available commands, type 'assist'`, 'html');
+        }
+
+        function readTextFile(fileInput, callback) {
+            let fr = new FileReader();
+            fr.onload = function () {
+                let res = fr.result;
+                callback(res);
+            }
+            fr.readAsText(fileInput.files[0]);
+        }
+
+        async function getPublicIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch public IP');
+                }
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                return error.message;
+            }
+        }
+
+
+        function printTree(node, indent, prefix) {
+            let treeString = '';
+            const isLast = (prefix === '└── ');
+            const newIndent = indent + (isLast ? '    ' : '│   ');
+
+            treeString += indent + prefix + node.name + (node.type === 'directory' ? '/' : '') + '\n';
+
+            if (node.type === 'directory') {
+                const childNodes = node.contents;
+                childNodes.forEach((childNode, index) => {
+                    const newPrefix = index === childNodes.length - 1 ? '└── ' : '├── ';
+                    treeString += printTree(childNode, newIndent, newPrefix);
+                });
+            }
+
+            return treeString;
+        }
+
+        window.addEventListener('beforeunload', function (event) {
+            if (localStorage.getItem('fs-save-point') !== JSON.stringify(fs) && JSON.stringify(fs) !== JSON.stringify(defaultfs)) {
+                event.preventDefault();
+                if (confirm('There are unsaved changes. Create a new save point to save changes, or exit without saving.')) { window.close() }
+                else { printOutput("Use 'save' command to create a new save point. It will be loaded automatically the next time."); NewCommandLine(); focuslastinp(); }
+            }
+        })
+        document.addEventListener('click', focuslastinp);
+
+        function revertToLastSavePoint() { if (localStorage.getItem('fs-save-point')) { fs = JSON.parse(localStorage.getItem('fs-save-point')); } }
+    </script>
+</head>
+
+<body></body>
+<script> //onload scripts
+    const defaultfs = {
+        type: 'directory', name: '/', contents: [{ type: 'directory', name: 'home', contents: [{ type: 'directory', name: 'user', contents: [] }] }, {
+            type: 'directory', name: 'system', contents: [
+                {
+                    type: 'directory', name: 'assist_messages', contents: [
+                        { type: 'file', name: 'cd', contents: 'Change directory: cd [directory]' },
+                        { type: 'file', name: 'pwd', contents: 'Print working directory: pwd' },
+                        { type: 'file', name: 'ls', contents: 'List contents of a directory: ls [directory]' },
+                        { type: 'file', name: 'tree', contents: 'Display directory tree: tree [directory]' },
+                        { type: 'file', name: 'rm', contents: 'Remove a file from the system: rm [file]' },
+                        { type: 'file', name: 'mkdir', contents: 'Create a new directory: mkdir [directory]' },
+                        { type: 'file', name: 'rmdir', contents: 'Remove a directory and its contents: rmdir [directory]' },
+                        { type: 'file', name: 'touch', contents: 'Create a new file: touch [file]' },
+                        { type: 'file', name: 'read', contents: 'Read contents from a file: read [file]' },
+                        { type: 'file', name: 'edit', contents: 'Edit/Change the contents of a file: edit [file]' },
+                        { type: 'file', name: 'open', contents: 'Open a file in a new tab: open [file]' },
+                        { type: 'file', name: 'copy', contents: 'Copy files or directories: copy [source] [destination]' },
+                        { type: 'file', name: 'move', contents: 'Move files or directories: move [source] [destination]' },
+
+                        // Cross-System Commands
+                        { type: 'file', name: 'import', contents: 'Import files from your system: import [file]' },
+                        { type: 'file', name: 'export', contents: 'Export files from the file system to yours: export [file]' },
+
+                        // Shell Commands
+                        { type: 'file', name: 'clear', contents: 'Clear the screen: clear' },
+                        { type: 'file', name: 'exit', contents: 'Close the terminal emulator window: exit' },
+                        { type: 'file', name: 'history', contents: 'View command history: history' },
+                        { type: 'file', name: 'echo', contents: 'Print/echo text into the terminal: echo [text]' },
+
+                        // Save point commands
+                        { type: 'file', name: 'save', contents: 'Add a save point to storage: save' },
+                        { type: 'file', name: 'revert', contents: 'Revert back to last save point: revert' },
+                        { type: 'file', name: 'reset', contents: 'Reset save points: reset' },
+
+                        // Developer Tools
+                        { type: 'file', name: 'js', contents: 'Run plain JavaScript code inside the webpage: js [code]' },
+                        { type: 'file', name: 'info', contents: 'Get information about the current session: info' },
+                        { type: 'file', name: 'nav', contents: 'Navigate to a URL: nav [URL]' },
+                        { type: 'file', name: 'ip', contents: 'Print your public IP address: ip' }
+                    ]
+                }, { type: 'file', name: 'assist', contents: '<br>Use:\'assist [command]\' for help on a specific command.<br><br>List of available commands:<br><br>-Filesystem Interaction:<br><br>cd: Change directory.<br>pwd: Print working directory.<br>ls: List contents of a directory.<br>tree: Display directory tree.<br>rm: Remove a file from the system.<br>mkdir: Create a new directory.<br>rmdir: removes a directory and its contents.<br>touch: Create a new file.<br>read: Read contents from a file.<br>edit: Edit/Change the contents of a file.<br>open: Open a file in a new tab.<br>copy/cp: Copy files or directories.<br>move/mv: Move files or directories.<br><br>-Cross-System Commands:<br><br>import: Import files from your system.<br>export: Export files from the file system to yours.<br><br>-Shell Commands:<br><br>clear: Clear the screen.<br>exit: Close the terminal emulator window.<br>history: View command history.<br>echo: print/echo text into the terminal.<br><br>-Save point commands:<br><br>save: Add a save point to storage.<br>revert: Revert back to last save point.<br>reset: Reset save points.<br><br>Developer Tools:<br><br>js: Run plain JavaScript code inside the webpage.<br>info: Get information about the current session.<br>nav: Navigate to a URL.<br>ip: Prints your public ip address.' }]
+        }]
+    };
+    var fs = JSON.parse(JSON.stringify(defaultfs));
+    revertToLastSavePoint();
+    printInfo();
+    if (localStorage.getItem('fs-save-point')) { printOutput(`Currently using save point: ${localStorage.getItem('fs-save-point-date')}`, 'html') }
+    else { printOutput('You do not have any save points stored. Using the default file-system.', 'html') }
+    NewCommandLine(); focuslastinp();
+</script>
+
+</html>

@@ -1,0 +1,56 @@
+<html>
+
+<head>
+    <style>
+        body {
+            background-color: black;
+            font-family: 'Courier New', Courier, monospace, serif;
+            color: white;
+            font-size: 1.2vh;
+            overflow: hidden auto;
+            white-space: pre-wrap;
+            width: 98vw;
+            height: 98vh;
+            margin: 0px;
+            padding: 1vh 1vw;
+        }
+
+        span.f {
+            color: #f00;
+        }
+
+        span.t {
+            color: #0f0;
+        }
+    </style>
+</head>
+
+<body spellcheck="false"></body>
+<script>
+    const kernel_version = `1.1`;
+    const kernel_name = `kernel-v${kernel_version}.js`;
+    document.body.innerHTML = `[ .. ] Loading kernel`;
+    let kernelobj = document.createElement('script');
+    kernelobj.src = kernel_name;
+    kernelobj.type = 'text/javascript';
+    document.head.append(kernelobj);
+    setTimeout(() => {
+        if (document.scripts[0].attributes[0].value == kernel_name) {
+            document.body.innerHTML = `[ <span class='t'>OK</span> ] Loaded ${kernel_name}`;
+            document.body.innerHTML += `\n[ .. ] Starting kernel`;
+            if (typeof (kernel_init) == "function") {
+                kernel_init();
+                document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Starting kernel`, `[ <span class='t'>OK</span> ] Started kernel`);
+            }
+            else {
+                document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Starting kernel`, `[ <span class='f'>NO</span> ] Kernel is incompatible`);
+            }
+
+        }
+        else {
+            document.body.innerHTML = `[ <span class='f'>NO</span> ] Error while loading kernel`;
+        }
+    }, 20);
+</script>
+
+</html>
