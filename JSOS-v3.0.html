@@ -1,6 +1,10 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSOS Boot Loader</title>
     <style>
         body {
             background-color: black;
@@ -22,35 +26,113 @@
         span.t {
             color: #0f0;
         }
+
+        #boot-opt-menu {
+            font-size: 3.2vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 80vh;
+            width: 80vw;
+            margin: 10vh 10vw;
+            position: fixed;
+            top: 0;
+            left: 0;
+            gap: 20px;
+        }
+
+        #boot-opt-menu>* {
+            margin: 0;
+        }
+
+        #boot-opt-menu>div {
+            font-size: 2.4vh;
+            background-color: #00f;
+            border-radius: 10px;
+            padding: 10px 20px;
+        }
     </style>
 </head>
 
-<body spellcheck="false"></body>
-<script>
-    const kernel_version = `1.1`;
-    const kernel_name = `kernel-v${kernel_version}.js`;
-    document.body.innerHTML = `[ .. ] Loading kernel`;
-    let kernelobj = document.createElement('script');
-    kernelobj.src = kernel_name;
-    kernelobj.type = 'text/javascript';
-    document.head.append(kernelobj);
-    setTimeout(() => {
-        if (document.scripts[0].attributes[0].value == kernel_name) {
-            document.body.innerHTML = `[ <span class='t'>OK</span> ] Loaded ${kernel_name}`;
-            document.body.innerHTML += `\n[ .. ] Starting kernel`;
-            if (typeof (kernel_init) == "function") {
-                kernel_init();
-                document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Starting kernel`, `[ <span class='t'>OK</span> ] Started kernel`);
+<body spellcheck="false">
+    <div id="boot-opt-menu">
+
+    </div>
+    <script>
+        window.release = '1.0';
+        async function loadInit(name, type = 'r') {
+            var fancyname = type === 'r' ? name.split('.').slice(0, -1).join('.') : name;
+            if (type === 'ls') {
+                document.body.innerHTML = `[ .. ] Loading filesystem ${fancyname}`;
+                if (localStorage.getItem(name)) {
+                    document.body.innerHTML = `[ <span class='t'>OK</span> ] Loaded filesystem`;
+                    document.body.innerHTML += `\n[ .. ] Mounting filesystem`;
+                    try {
+                        window.fs = JSON.parse(localStorage.getItem(name));
+                        let init_file = fs.contents[fs.contents.findIndex(file => file.name === 'init' && file.type === 'file')];
+                        await eval(init_file.contents);
+                        kernel_init();
+                        document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Mounting filesystem`, `[ <span class='t'>OK</span> ] Mounted filesystem ${fancyname}`);
+                    } catch (error) {
+                        document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Mounting filesystem`, `[ <span class='f'>NO</span> ] Error mounting filesystem ${fancyname}: ${error}`);
+                    }
+                }
+                else {
+                    document.body.innerHTML = `[ <span class='f'>NO</span> ] Could not find the filesystem '${fancyname}'`;
+                }
+            } else if (type === 'r') {
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = name;
+
+                document.body.innerHTML = `[ .. ] Loading filesystem ${fancyname}`;
+                document.body.appendChild(iframe);
+
+                iframe.onload = async function () {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const fileContent = iframeDoc.body.textContent || iframeDoc.body.innerText;
+                    document.body.innerHTML = `[ <span class='t'>OK</span> ] Loaded filesystem`;
+                    window.fs = JSON.parse(fileContent);
+                    let freeLs = 0;
+                    while (localStorage.getItem(`ls${freeLs}`)) {
+                        freeLs++;
+                    }
+                    try {
+                        localStorage.setItem(`ls${freeLs}`, JSON.stringify(window.fs));
+                        let bootConfiguration = JSON.parse(localStorage.getItem('bootConfig')) || { title: 'JSOS Boot Loader', entries: [`ls${freeLs}`], timeout: 5 };
+                        localStorage.setItem('bootConfig', JSON.stringify(bootConfiguration));
+                        document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Creating new filesystem 'ls${freeLs}'`, `[ <span class='t'>OK</span> ] Created filesystem 'ls${freeLs}'`);
+                        loadInit(`ls${freeLs}`, 'ls');
+                    } catch (error) {
+                        document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Creating new filesystem 'ls${freeLs}'`, `[ <span class='f'>NO</span> ] Error creating filesystem 'ls${freeLs}': ${error}`);
+                    }
+                }
             }
             else {
-                document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Starting kernel`, `[ <span class='f'>NO</span> ] Kernel is incompatible`);
+                document.body.innerHTML = `[ <span class='f'>NO</span> ] Unknown filesystem type '${type}'`;
             }
+        }
 
+        const config = JSON.parse(localStorage.getItem('bootConfig'));
+        if (config) {
+            var bootMenu = document.querySelector('#boot-opt-menu');
+            bootMenu.innerHTML += `<h2>${config.title || '[ JBL ] JSOS Boot Loader'}</h2>`;
+            bootMenu.innerHTML += config.entries.map(entry => `<div class="entry">JSOS at /dev/${entry}</div>`).join("");
+            if (config.timeout > -1) {
+                let defaultTimeout = setTimeout(() => loadInit(config.entries[0], config.entries[0].endsWith('.json') ? 'r' : 'ls'), config.timeout * 1000);
+            }
         }
         else {
-            document.body.innerHTML = `[ <span class='f'>NO</span> ] Error while loading kernel`;
+            loadInit(`JFS-r${window.release}.json`, 'r');
         }
-    }, 2000);
-</script>
+        window.addEventListener('beforeunload', async (e) => {
+            e.preventDefault();
+            let fsName = window.mps.find(mp => mp.on === '/').src;
+            document.body.innerHTML = `[ .. ] Unmounting filesystem ${fsName}`;
+            await localStorage.setItem(fsName, JSON.stringify(window.fs));
+        });
+    </script>
+</body>
 
 </html>

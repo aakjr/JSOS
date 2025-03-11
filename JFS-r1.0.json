@@ -1,0 +1,233 @@
+{
+    "name": "/",
+    "type": "directory",
+    "contents": [
+        {
+            "name": "init",
+            "type": "file",
+            "contents": "window.kernel_init = async () => {window.processes = []; window.processes.push({'pid':'1','location':'/init'}); window.mps = []; window.mps.push({'on':'/','src':name}); if(typeof(fs)=='object'&&fs.contents){document.body.innerHTML+=`\n[ .. ] Loading essential libraries`; const slashlib=fs.contents.find(obj=>obj.name=='lib'&&obj.type=='directory'); if(slashlib){document.body.innerHTML+=` (/lib)`; try{const libraries=slashlib.contents; for(const library of libraries){try{eval(library.contents); document.body.innerHTML+=`\n[ <span class='t'>OK</span> ] Loaded '${library.name}'`; }catch(err){document.body.innerHTML+=`\n[ <span class='f'>NO</span> ] Failed to load '${library.name}'`; }}document.body.innerHTML=document.body.innerHTML.replace(`\n[ .. ] Loading essential libraries`,`\n[ <span class='t'>OK</span> ] Loaded essential libraries`); document.body.innerHTML+=`\n[ .. ] Loading Shell`; const slashbin=fs.contents.find(obj=>obj.name=='bin'&&obj.type=='directory'); if(slashbin){const jsh=slashbin.contents.find(obj=>obj.name=='sh'&&obj.type=='file'); if(jsh){eval(jsh.contents); window.processes.push({'pid':window.nextpid(),'location':'/bin/sh'}); document.body.innerHTML=document.body.innerHTML.replace(`\n[ .. ] Loading Shell`,`\n[ <span class='t'>OK</span> ] Shell loaded\\n\\n`); }else{document.body.innerHTML=document.body.innerHTML.replace(`\n[ .. ] Loading Shell`,`\n[ <span class='f'>NO</span> ] Shell missing (/bin/sh not found)`); return; }}else{document.body.innerHTML=document.body.innerHTML.replace(`\n[ .. ] Loading Shell`,`\n[ <span class='f'>NO</span> ] Binaries directory missing (/bin not found)`); return; }}catch(err){document.body.innerHTML=document.body.innerHTML.replace(`\n[ .. ] Loading essential libraries`,`\n[ <span class='f'>NO</span> ] Error loading essential libraries`); return; }}else{document.body.innerHTML+=`\n[ <span class='f'>NO</span> ] Libraries directory missing (/lib not found)`; return; }}else{document.body.innerHTML+=`\n[ <span class='f'>NO</span> ] Filesystem error`; return; }}"
+        },
+        {
+            "name": "bin",
+            "type": "directory",
+            "contents": [
+                {
+                    "name": "clear",
+                    "type": "file",
+                    "contents": "document.body.innerHTML = null; "
+                },
+                {
+                    "name": "reboot",
+                    "type": "file",
+                    "contents": "window.location.reload(); "
+                },
+                {
+                    "name": "alias",
+                    "type": "file",
+                    "contents": "switch(args.length) {case 0: ALIASES.forEach(alias => { stdout(`${alias.alias}='${alias.ref}'\\n`); }); break; case 1: if(ALIASES.findIndex(obj => obj.alias == args[0]) == -1) {break; } let obj = ALIASES[ALIASES.findIndex(obj => obj.alias == args[0])]; stdout(`${obj.alias}='${obj.ref}'`); break; default: ALIASES.push({ alias: args[0], ref: args.slice(1).join(' ') }); }"
+                },
+                {
+                    "name": "echo",
+                    "type": "file",
+                    "contents": "stdout(args.join(' ')); "
+                },
+                {
+                    "name": "pwd",
+                    "type": "file",
+                    "contents": "stdout(PWD); "
+                },
+                {
+                    "name": "mount",
+                    "type": "file",
+                    "contents": "switch(args.length) {case 0: stdout(window.mps.map(mp => `${mp.src} on ${mp.on}`).join('\\n')); break; }"
+                },
+                {
+                    "name": "jblm",
+                    "type": "file",
+                    "contents": "switch (args[0] ? args[0].trim() : '') {case '': case 'help': stdout('-Version:\\njbl 1.0\\n\\n-Operations:\\nupdate [file] - update the boot configuration, default file: /etc/jbl/boot\\nhelp - print this message');break;case 'update': loadlib('/usr/lib/libpcg');let config_file = args[1] || '/etc/jbl/boot';if (doesExist(findRelativePath(config_file), 'file').exists) {stdout(`Updating JBL from ${config_file}`);try {let opts = { title: 'JBL - JSOS Boot Loader', timeout: 5 }, res = {}, configs = parseConfiguration(pathToNode(findRelativePath(config_file)).contents);configs.forEach(config => {if (opts.hasOwnProperty(config.name)) {stdout(`Setting '${config.name}' to '${config.value}'`);opts[config.name] = config.value;}else {stdout(`Unknown option '${config.name}', skipping`);}});res = opts;stdout('Looking for entries (bootable filesystems)');let fss = [];let i = 0;while (localStorage.getItem(`ls${i}`)) {fss.push(`ls${i}`);stdout(`added boot entry for ls${i}`);i++;}res.entries = [window.mps.find(mp => mp.on === '/').src];localStorage.setItem('bootConfig', JSON.stringify(res));stdout(`Updated JBL from ${config_file} successfully`);}catch (error) {stdout(`Error updating JBL from ${config_file}: ${error}`);}}else {stdout(doesExist(findRelativePath(config_file), 'file').message);}break;default: stdout(`${args[0]}: invalid operation`);}"
+                },
+                {
+                    "name": "exit",
+                    "type": "file",
+                    "contents": "window.processes.splice(window.processes.findIndex(process => process.location === '/bin/sh'), 1); "
+                },
+                {
+                    "name": "ls",
+                    "type": "file",
+                    "contents": "if (args.length == 0) { stdout(pathToNode(PWD).contents.map(obj => obj.name).join(' ')) } else {args.forEach(dir => { if (doesExist(findRelativePath(dir), 'directory').exists) { stdout(`\\n\\n${dir}:\\n` + pathToNode(findRelativePath(dir)).contents.map(obj => obj.name).join(' ')) } else { stdout(doesExist(findRelativePath(dir), 'directory').message); } }); }; "
+                },
+                {
+                    "name": "cd",
+                    "type": "file",
+                    "contents": "if (args.length == 0) { args.push(homedir); } if(doesExist(findRelativePath(args[0]), 'directory').exists) {PWD = findRelativePath(args[0]); } else {stdout(doesExist(findRelativePath(args[0]), 'directory').message); }"
+                },
+                {
+                    "name": "cat",
+                    "type": "file",
+                    "contents": "if(doesExist(findRelativePath(args[0]), 'file').exists) {stdout(pathToNode(findRelativePath(args[0])).contents); } else {stdout(doesExist(findRelativePath(args[0]), 'file').message); }"
+                },
+                {
+                    "name": "touch",
+                    "type": "file",
+                    "contents": "if(doesExist(parentDirOf(findRelativePath(args[0])), 'directory').exists) {if(!doesExist(findRelativePath(args[0]), 'file').exists) {pathToNode(parentDirOf(findRelativePath(args[0]))).contents.push({ name: fileOfPath(args[0]), type: 'file', contents: '' })}} else {stdout(doesExist(parentDirOf(findRelativePath(args[0])), 'directory').message); }"
+                },
+                {
+                    "name": "nano",
+                    "type": "file",
+                    "contents": "loadlib('/usr/lib/libnano'); setTimeout(() => { window.removeEventListener('keydown', window.shreturn);});if (!args[0]) { stdout = 'Provide file name'; setTimeout(() => { window.addEventListener('keydown', window.shreturn); });}else { if (doesExist(parentDirOf(findRelativePath(args[0])), 'directory').exists) { document.body.style.overflowY = 'hidden'; window.removeEventListener('click', focuslastinp); const inputarea = document.createElement('textarea'); inputarea.innerText = doesExist(findRelativePath(args[0]), 'file').exists ? pathToNode(findRelativePath(args[0])).contents : ''; inputarea.className = 'texteditor'; document.body.appendChild(inputarea); setTimeout(() => { window.scrollTo(0, 0); document.querySelector('.texteditor').focus(); }); window.addEventListener('keydown', function handleTextEditorShortcuts(keyE) { if (keyE.ctrlKey && keyE.key === 's') { keyE.preventDefault(); if (!doesExist(findRelativePath(args[0]), 'file').exists) { pathToNode(parentDirOf(findRelativePath(args[0]))).contents.push({ name: fileOfPath(args[0]), type: 'file', contents: document.querySelector('.texteditor').value }); } else { pathToNode(findRelativePath(args[0])).contents = document.querySelector('.texteditor').value; } } if (keyE.key === 'Escape' || keyE.key === 'GoBack') { keyE.preventDefault(); window.removeEventListener('keydown', handleTextEditorShortcuts); window.addEventListener('click', focuslastinp); document.body.removeChild(inputarea); document.body.innerHTML += '\\n'; document.body.style.overflowY = 'auto'; focuslastinp(); setTimeout(() => { window.addEventListener('keydown', window.shreturn); }); } }); } else { stdout = doesExist(parentDirOf(findRelativePath(args[0])), 'directory').message; setTimeout(() => { window.addEventListener('keydown', window.shreturn); }); }}"
+                },
+                {
+                    "name": "mkdir",
+                    "type": "file",
+                    "contents": "if(doesExist(parentDirOf(findRelativePath(args[0])), 'directory').exists) {if(!doesExist(findRelativePath(args[0]), 'directory').exists) {pathToNode(parentDirOf(findRelativePath(args[0]))).contents.push({name: fileOfPath(args[0]), type: 'directory', contents: [] })}} else {stdout(doesExist(parentDirOf(findRelativePath(args[0])), 'directory').message); }"
+                },
+                {
+                    "name": "rm",
+                    "type": "file",
+                    "contents": "if(doesExist(parentDirOf(findRelativePath(args[0])), 'directory').exists) {if(doesExist(findRelativePath(args[0]), 'any').exists) {pathToNode(parentDirOf(findRelativePath(args[0]))).contents.splice([pathToNode(parentDirOf(findRelativePath(args[0]))).contents.findIndex(obj => obj.name == fileOfPath(args[0]) && obj.type == pathToNode(findRelativePath(args[0])).type)], 1); } else {stdout(doesExist(findRelativePath(args[0]), 'any').message); }}"
+                },
+                {
+                    "name": "cp",
+                    "type": "file",
+                    "contents": "if(doesExist(findRelativePath(args[0]), 'any').exists) {if(doesExist(parentDirOf(findRelativePath(args[1])), 'directory').exists) {pathToNode(parentDirOf(findRelativePath(args[1]))).contents.push({name: fileOfPath(args[1]), type: pathToNode(findRelativePath(args[0])).type, contents: pathToNode(findRelativePath(args[0])).contents }); } else {stdout(doesExist(parentDirOf(findRelativePath(args[1])), 'directory').message); }} else {stdout(doesExist(findRelativePath(args[0]), 'any').message); }"
+                },
+                {
+                    "name": "mv",
+                    "type": "file",
+                    "contents": "if(doesExist(findRelativePath(args[0]), 'any').exists) {if(doesExist(parentDirOf(findRelativePath(args[1])), 'directory').exists) {pathToNode(parentDirOf(findRelativePath(args[1]))).contents.push({name: fileOfPath(args[1]), type: pathToNode(findRelativePath(args[0])).type, contents: pathToNode(findRelativePath(args[0])).contents }); pathToNode(parentDirOf(findRelativePath(args[0]))).contents.splice([pathToNode(parentDirOf(findRelativePath(args[0]))).contents.findIndex(obj => obj.name == fileOfPath(args[0]) && obj.type == pathToNode(findRelativePath(args[0])).type)], 1); } else {stdout(doesExist(parentDirOf(findRelativePath(args[1])), 'directory').message); }} else {stdout(doesExist(findRelativePath(args[0]), 'any').message); }"
+                },
+                {
+                    "name": "js",
+                    "type": "file",
+                    "contents": "stdout(eval(args.join(' '))); "
+                },
+                {
+                    "name": "jpm",
+                    "type": "file",
+                    "contents": "switch (args[0] ? args[0].trim() : '') {case '': case 'help': stdout('-Version:\\njpm 0.1\\n\\n-Operations:\\nupdate\\ninstall <package>\\nhelp');break;case 'update': {if (!doesExist('/etc/jpm/sources.list', 'file').exists) { stdout(`Cannot read source list at /etc/jpm/sources.list: ${doesExist('/etc/jpm/sources.list', 'file').message}`, 2); break; }loadlib('/usr/lib/libpcg');const sources = parseConfiguration(pathToNode('/etc/jpm/sources.list').contents);stdout(JSON.stringify(sources));let pkgsInfo = [];for (let source of sources) {const url = `${source.name}/jpm`;try {fetch(url).then(response => response.json()).then(data => pkgsInfo.push(data));} catch (error) {console.error(`Error reaching source ${source}: ${error}`);}}if (doesExist('/etc/jpm/pkgs.json', 'file').exists) {const pkgsFileNode = pathToNode('/etc/jpm/pkgs.json');pkgsFileNode.contents = JSON.stringify(pkgsInfo);stdout('Packages updated in /etc/jpm/pkgs.json');} else {stdout('Error: /etc/jpm/pkgs.json file not found');} break;} case 'install': {const packageName = args[1].trim();const pkgsFileNode = pathToNode('/etc/jpm/pkgs.json');if (!pkgsFileNode || !pkgsFileNode.contents) {stdout('Package information not available. Please run `jpm update` first.');break;} const pkgsInfo = JSON.parse(pkgsFileNode.contents);let packageInfo = null;for (let pkgData of pkgsInfo) {if (pkgData[packageName]) {packageInfo = pkgData[packageName];break;}} if (packageInfo) {const { version, dependencies } = packageInfo;stdout(`Package: ${packageName}\\nVersion: ${version}\\nDependencies: ${dependencies.join(', ')}`);} else {stdout(`${packageName}: package not found`);} break;} default: stdout(`${args[0]}: invalid operation`);break;}"
+                },
+                {
+                    "name": "sh",
+                    "type": "file",
+                    "contents": "document.styleSheets[0].insertRule('.input{ outline: none; color: white; }'); shvars = [{ 'name': 'USER', 'value': 'root' }, { 'name': 'HOST', 'value': (window.location.host ? window.location.host : 'localhost') }, { 'name': 'PWD', 'value': '' }, { 'name': 'PATH', 'value': '/bin:/usr/bin' }, { 'name': 'HOME', 'value': '' }, { 'name': 'ALIASES', 'value': 'quit=exit' } ]; window.shfvars = [{ name: '~', 'value': 'shvars[shvars.findIndex(shvar => shvar.name === `HOME`)].value' }, { 'name': './', 'value': 'shvars[shvars.findIndex(shvar => shvar.name === `PWD`)].value + \\'/\\'' }]; loadlib('/usr/lib/libdoese'); loadlib('/usr/lib/libpdo'); loadlib('/usr/lib/libfop'); loadlib('/lib/libsh'); setTimeout(() => { let usershvar = shvars[shvars.findIndex(shvar => shvar.name === `USER`)]; let homedirshvar = shvars[shvars.findIndex(shvar => shvar.name === `HOME`)]; homedirshvar.value = (usershvar.value === 'root' ? '/root' : `/home/${usershvar.value}`); shvars[shvars.findIndex(shvar => shvar.name === `PWD`)].value = homedirshvar.value; NewCommandLine(); focuslastinp(); window.addEventListener('click', focuslastinp); }); window.addEventListener('keydown', window.shreturn);"
+                }
+            ]
+        },
+        {
+            "name": "lib",
+            "type": "directory",
+            "contents": [
+                {
+                    "name": "libstdout",
+                    "type": "file",
+                    "contents": "window.stdout = (output = '', mode = null) => { const div = document.createElement('div'); div.innerText = `${mode === 0 ? '[+] ' : (mode === 1 ? '[-] ' : (mode === 2 ? '[!] ' : ''))}${output}`; document.body.appendChild(div); }"
+                },
+                {
+                    "name": "libptn",
+                    "type": "file",
+                    "contents": "window.pathToNode = (fullpath) => { if (fullpath == '/') { return fs; } if (fullpath.endsWith('/')) { fullpath = fullpath.slice(0, -1); } var res = 'fs'; var pathsegs = fullpath.split('/').slice(1); pathsegs.forEach((step, index) => { if (step.trim() == '') { res = 'undefined'; return; } if (step == '..') { if (index == 0) { res = 'undefined'; return; } else { res = res.split('.').slice(0, -1).join('.'); } } else { if (index == pathsegs.length - 1) { res += `.contents[${eval(res).contents.findIndex(obj => obj.name == step)}]`; } else { res += `.contents[${eval(res).contents.findIndex(obj => obj.name == step && obj.type == 'directory')}]`; } } if (eval(res) == undefined) { res = 'undefined'; return; } }); return eval(res); }"
+                },
+                {
+                    "name": "libloadlib",
+                    "type": "file",
+                    "contents": "window.loadlib = (lib_name) => { try { eval(pathToNode(lib_name).contents); } catch (err) { return err; } return true; }"
+                },
+                {
+                    "name": "libsh",
+                    "type": "file",
+                    "contents": "NewCommandLine = () => {const newline = document.createElement('span');newline.className = 'input';newline.contentEditable = 'true';const marker = document.createElement('label');marker.innerHTML = shvars.find(shvar => shvar.name === 'USER').value === 'root' ? `# ` : `$ `;document.body.appendChild(marker);document.body.appendChild(newline);document.body.appendChild(document.createElement('br'));};focuslastinp = () => {var inputs = document.getElementsByClassName('input');if (inputs.length == 0) {NewCommandLine();} inputs = document.getElementsByClassName('input');const lastinput = inputs[inputs.length - 1];lastinput.focus();moveCursorToEnd(lastinput);document.body.scrollTo(0, document.body.scrollHeight);};moveCursorToEnd = (element) => {var range = document.createRange();var selection = window.getSelection();range.selectNodeContents(element);range.collapse(false);selection.removeAllRanges();selection.addRange(range);};HandleCommand = async(stdin) => {if (!stdin.trim()) {return '';};let cmd = stdin.trim().split(' ')[0], args = stdin.trim().split(' ').slice(1);var runlocation = '';var shvarloadcode = '';shvars.forEach(shvar => {shvarloadcode += `${shvar.name} = '${shvar.value}' ;`;});eval(shvarloadcode);if (cmd.includes('/')) {if (doesExist(findRelativePath(cmd), 'file').exists) {runlocation = findRelativePath(cmd);try {eval(pathToNode(runlocation).contents);} catch (err) {return stdout(`[${runlocation}:${err.lineNumber}:${err.columnNumber}] ${err.message}`);};var shvarsavecode = '';shvars.forEach((shvar, i) => {shvarsavecode += `shvars[${i}].value = ${shvar.name} ;`;});eval(shvarsavecode);} else {return stdout(doesExist(findRelativePath(cmd), 'file').message);}} else {PATH = PATH.split(':');PATH.forEach(path => {if (doesExist(`${path}/${cmd}`, 'file').exists) {return runlocation = `${path}/${cmd}`;}});var aliasesplain = ALIASES.split(':');ALIASES = [];aliasesplain.forEach(aliasplain => {ALIASES.push({alias: aliasplain.split('=').slice(0, 1), ref: aliasplain.split('=').slice(1)});});let matchingalias = ALIASES.find(obj => obj.alias == cmd);if (matchingalias) {return HandleCommand(`${matchingalias.ref} ${args.join(' ')}`);};try {eval(pathToNode(runlocation).contents);} catch (err) {stdout(`[${runlocation}:${err.lineNumber}:${err.columnNumber}] ${err.message}`);};PATH = PATH.join(':');ALIASES = ALIASES.map(obj => `${obj.alias}=${obj.ref}`).join(':');var shvarsavecode = '';shvars.forEach((shvar, i) => {shvarsavecode += `shvars[${i}].value = ${shvar.name} ;`;});eval(shvarsavecode);return;};};parseVars = (string) => {let res = string.replaceAll(/\\$\\w+/g, (match) => {let shvar = shvars.find(shvar => shvar.name === match.slice(1));if (!shvar) {return '';} else {return shvar.value;}}).replaceAll(/\\$\\{\\w +\\}/g, (match) => {let shvar = shvars.find(shvar => shvar.name === match.slice(2, match.length - 1));if (!shvar) {return '';} else {return shvar.value;}});window.shfvars.forEach(fvar => {res = res.replaceAll(fvar.name, window.eval(fvar.value));});return res;};findRelativePath = (path) => {if (!path) {return PWD;} if (path == '/') {return '/';} if (path.endsWith('/')) {path = path.slice(0, -1);} let res = (PWD == '/' ? PWD : path.startsWith('/') ? '' : PWD + '/') + path;const segments = res.split('/');const stack = [];segments.forEach(segment => {if (segment === '..') {stack.pop();} else if (segment !== '.' && segment !== '') {stack.push(segment);}});res = '/' + stack.join('/');if (res == '') {res = '/';} return res;};shreturn = async (event) => {if (event.key === 'Enter') {event.preventDefault();let commands = event.target.innerText.split('&');window.removeEventListener('keydown', shreturn);await commands.forEach(command => {HandleCommand(parseVars(command));stdout('\\n');});if (window.processes.find(process => process.location === '/bin/sh')) {window.addEventListener('keydown', shreturn);} NewCommandLine();focuslastinp();}};"
+                },
+                {
+                    "name": "libsha256",
+                    "type": "file",
+                    "contents": "sha256 = async (input) => { const encoder = new TextEncoder(); const data = encoder.encode(input); const hashBuffer = await crypto.subtle.digest('SHA-256', data); const hashArray = Array.from(new Uint8Array(hashBuffer)); const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); return hashHex; }"
+                },
+                {
+                    "name": "libnextpid",
+                    "type": "file",
+                    "contents": "window.nextpid = () => {var highestpid = 1; window.processes.forEach(process => {if (process.pid > highestpid) {highestpid = process.pid; }}); return highestpid + 1; }"
+                }
+            ]
+        },
+        {
+            "name": "usr",
+            "type": "directory",
+            "contents": [
+                {
+                    "name": "bin",
+                    "type": "directory",
+                    "contents": []
+                },
+                {
+                    "name": "lib",
+                    "type": "directory",
+                    "contents": [
+                        {
+                            "name": "libdoese",
+                            "type": "file",
+                            "contents": "window.doesExist = (file, type) => { if (!file) { return { exists: false, message: 'Specify a file or directory' }; } if (file.endsWith('/') && file !== '/') { file = file.slice(0, -1); } if (!pathToNode(file)) { return { exists: false, message: `${file}: No such file or directory` }; } if (type !== 'file' && type !== 'directory') { return { exists: true, message: '' }; } if (type === eval(pathToNode(file)).type) { return { exists: true, message: '' }; } else if (type === 'file') { return { exists: false, message: `${file}: is a directory` }; } else { return { exists: false, message: `${file}: is not a directory` }; } }"
+                        },
+                        {
+                            "name": "libpdo",
+                            "type": "file",
+                            "contents": "window.parentDirOf = (file) => {return file.split('/').slice(0, -1).join('/') == '' ? '/' : file.split('/').slice(0, -1).join('/'); }"
+                        },
+                        {
+                            "name": "libfop",
+                            "type": "file",
+                            "contents": "fileOfPath = (path) => { let pathSegmentsLength = path.split('/').length; return path.split('/')[pathSegmentsLength - 1] }"
+                        },
+                        {
+                            "name": "libpcg",
+                            "type": "file",
+                            "contents": "parseConfiguration = (configuration) => { let res = []; let opts = configuration.split('\\n').filter(opt => !opt.startsWith('#') && !!opt); opts.forEach(opt => res.push({name: opt.split('=')[0], value: opt.split('=')[1]})); return res; }"
+                        },
+                        {
+                            "name": "libnano",
+                            "type": "file",
+                            "contents": "if (!Array.from(document.styleSheets[0].cssRules).find(obj => obj.selectorText === '.texteditor')) {document.styleSheets[0].insertRule('.texteditor { width: 98vw; height: 98vh; margin: 0; border: none; resize: none; background: #000; outline: none; color: inherit; font: inherit; overflow-wrap: break-word; top: 1vh; left: 1vh; position: fixed; }');}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "etc",
+            "type": "directory",
+            "contents": [
+                {
+                    "name": "jpm",
+                    "type": "directory",
+                    "contents": [
+                        {
+                            "name": "pkgs.json",
+                            "type": "file",
+                            "contents": ""
+                        },
+                        {
+                            "name": "sources.list",
+                            "type": "file",
+                            "contents": "# sources (mirrors) for JPM - JSOS Package Manager to use\nhttps://jpmirror.sliceofyou.org"
+                        }
+                    ]
+                },
+                {
+                    "name": "jbl",
+                    "type": "directory",
+                    "contents": [
+                        {
+                            "name": "boot",
+                            "type": "file",
+                            "contents": "timeout=5\ntitle=JBL - Welcome to JSOS"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "root",
+            "type": "directory",
+            "contents": []
+        }
+    ]
+}
