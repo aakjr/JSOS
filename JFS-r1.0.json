@@ -207,7 +207,7 @@
                         {
                             "name": "sources.list",
                             "type": "file",
-                            "contents": "# sources (mirrors) for JPM - JSOS Package Manager to use\nhttps://jpmirror.sliceofyou.org"
+                            "contents": "# sources (mirrors) for JPM - JSOS Package Manager to use\nhttps://jpm.sliceofyou.org"
                         }
                     ]
                 },
