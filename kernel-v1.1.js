@@ -110,7 +110,7 @@ var fs = {
                 {
                     "name": "libptn",
                     "type": "file",
-                    "contents": "window.pathToNode = (fullpath) => { if (fullpath == '/') { return fs; } if (fullpath.endsWith('/')) { fullpath = fullpath.slice(0, -1); } var res = 'fs'; var pathsegs = fullpath.split('/').slice(1); pathsegs.forEach((step, index) => { if (step.trim() == '') { res = 'undefined'; return; } if (step == '..') { if (index == 0) { res = 'undefined'; return; } else { res = res.split('.').slice(0, -1).join('.'); } } else { if (index == pathsegs.length - 1) { res += `.contents[${eval(res).contents.findIndex(obj => obj.name == step)}]`; } else { res += `.contents[${eval(res).contents.findIndex(obj => obj.name == step && obj.type == 'directory')}]`; } } if (eval(res) == undefined) { res = 'undefined'; return; } }); return eval(res); }"
+                    "contents": "window.pathToNode = (fullpath) => { if (fullpath == '/') { return fs; } if (fullpath.endsWith('/')) { fullpath = fullpath.slice(0, -1); } var res = 'fs'; var pathsegs = fullpath.split('/').slice(1); pathsegs.forEach((step, index) => { if (step.trim() == '') { return res = 'undefined'; } if (step == '..') { if (index == 0) { return res = 'undefined'; } else { res = res.split('.').slice(0, -1).join('.'); } } else { if (!eval(res)) return res = 'undefined'; if (index == pathsegs.length - 1) { res += `.contents[${eval(res).contents.findIndex(obj => obj.name == step)}]`; } else { res += `.contents[${eval(res).contents.findIndex(obj => obj.name == step && obj.type == 'directory')}]`; } } }); return eval(res); }"
                 },
                 {
                     "name": "libloadlib",
