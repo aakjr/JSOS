@@ -7,130 +7,343 @@
     <title>JSOS Boot Loader</title>
     <style>
         body {
-            background-color: black;
-            font-family: 'Courier New', Courier, monospace, serif;
-            color: white;
-            font-size: 1.2vh;
-            overflow: hidden auto;
+            background: linear-gradient(135deg, #181c20 0%, #23272e 100%);
+            font-family: 'Fira Mono', 'Consolas', 'Courier New', monospace;
+            color: #e0e0e0;
+            font-size: 1.4vh;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            overflow-wrap: anywhere;
             white-space: pre-wrap;
-            width: 98vw;
-            height: 98vh;
-            margin: 0px;
-            padding: 1vh 1vw;
+            text-align: start;
         }
 
-        span.f {
-            color: #f00;
-        }
-
-        span.t {
-            color: #0f0;
-        }
-
-        #boot-opt-menu {
-            font-size: 3.2vh;
+        #boot-container {
+            background: rgba(20, 22, 28, 0.98);
+            border-radius: 12px;
+            box-shadow: 0 0 24px #0ff4, 0 0 2px #0ff2;
+            padding: 2.5vh 3vw 2vh 3vw;
+            min-width: 420px;
+            max-width: 90vw;
+            min-height: 340px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 80vh;
-            width: 80vw;
-            margin: 10vh 10vw;
-            position: fixed;
-            top: 0;
-            left: 0;
-            gap: 20px;
+            margin: auto;
         }
 
-        #boot-opt-menu>* {
-            margin: 0;
+        #boot-title {
+            font-size: 2.2vh;
+            letter-spacing: 0.1em;
+            color: #0ff;
+            text-shadow: 0 0 8px #0ff8;
+            margin-bottom: 2vh;
+            font-weight: bold;
         }
 
-        #boot-opt-menu>div {
-            font-size: 2.4vh;
-            background-color: #00f;
-            border-radius: 10px;
-            padding: 10px 20px;
+        #boot-opt-menu {
+            width: 100%;
+            margin-bottom: 2vh;
+        }
+
+        .entry {
+            font-size: 1.7vh;
+            padding: 0.9vh 1vw;
+            margin: 0.5vh 0;
+            border-radius: 6px;
+            background: none;
+            color: #e0e0e0;
+            transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+            outline: none;
+            border: none;
+            position: relative;
+        }
+
+        .entry.selected {
+            background: linear-gradient(90deg, #0ff4 0%, #0ff2 100%);
+            color: #222;
+            font-weight: bold;
+            box-shadow: 0 0 8px #0ff8;
+            animation: pulse 1.2s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                box-shadow: 0 0 8px #0ff8;
+            }
+
+            to {
+                box-shadow: 0 0 18px #0ffb;
+            }
+        }
+
+        #boot-timer {
+            color: #0ff;
+            font-size: 1.3vh;
+            margin-bottom: 1vh;
+            letter-spacing: 0.08em;
+        }
+
+        #boot-help {
+            color: #888;
+            font-size: 1.1vh;
+            margin-top: 1.5vh;
+            text-align: center;
+            letter-spacing: 0.04em;
+            user-select: none;
+        }
+
+        #file-import {
+            display: none;
+        }
+
+        #boot-opt-menu {
+            max-height: 32vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #0ff #23272e;
+        }
+
+        #boot-opt-menu::-webkit-scrollbar {
+            width: 8px;
+            background: #23272e;
+        }
+
+        #boot-opt-menu::-webkit-scrollbar-thumb {
+            background: #0ff4;
+            border-radius: 6px;
         }
     </style>
 </head>
 
 <body spellcheck="false">
-    <div id="boot-opt-menu">
-
+    <div id="boot-container">
+        <div id="boot-title">JSOS Boot Loader</div>
+        <div id="boot-opt-menu">
+            <div class="entry">Loading Boot Options...</div>
+        </div>
+        <div id="boot-timer">Time left: <span id="timer"></span></div>
+        <div id="boot-help">
+            ↑/↓: Select &nbsp; | &nbsp; Enter: Boot &nbsp; | &nbsp; i: Import FS &nbsp; | &nbsp; e: Export FS &nbsp; | &nbsp; d: Delete FS &nbsp; | &nbsp; n: New FS &nbsp; | &nbsp; r: Reload &nbsp; | &nbsp; Esc: Cancel
+        </div>
+        <input type="file" id="file-import" accept=".json">
     </div>
     <script>
         window.release = '1.0';
-        async function loadInit(name, type = 'r') {
-            var fancyname = type === 'r' ? name.split('.').slice(0, -1).join('.') : name;
-            if (type === 'ls') {
-                document.body.innerHTML = `[ .. ] Loading filesystem ${fancyname}`;
-                if (localStorage.getItem(name)) {
-                    document.body.innerHTML = `[ <span class='t'>OK</span> ] Loaded filesystem`;
-                    document.body.innerHTML += `\n[ .. ] Mounting filesystem`;
-                    try {
-                        window.fs = JSON.parse(localStorage.getItem(name));
-                        let init_file = fs.contents[fs.contents.findIndex(file => file.name === 'init' && file.type === 'file')];
-                        await eval(init_file.contents);
-                        kernel_init();
-                        document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Mounting filesystem`, `[ <span class='t'>OK</span> ] Mounted filesystem ${fancyname}`);
-                    } catch (error) {
-                        document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Mounting filesystem`, `[ <span class='f'>NO</span> ] Error mounting filesystem ${fancyname}: ${error}`);
-                    }
-                }
-                else {
-                    document.body.innerHTML = `[ <span class='f'>NO</span> ] Could not find the filesystem '${fancyname}'`;
-                }
-            } else if (type === 'r') {
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                iframe.src = name;
+        let selectedIndex = 0;
+        let booting = false;
+        let countdownInterval;
+        let timer;
 
-                document.body.innerHTML = `[ .. ] Loading filesystem ${fancyname}`;
-                document.body.appendChild(iframe);
+        const bootMenu = document.querySelector('#boot-opt-menu');
+        const timerDisplay = document.querySelector('#timer');
+        const bootTitle = document.querySelector('#boot-title');
+        const fileImport = document.getElementById('file-import');
 
-                iframe.onload = async function () {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    const fileContent = iframeDoc.body.textContent || iframeDoc.body.innerText;
-                    document.body.innerHTML = `[ <span class='t'>OK</span> ] Loaded filesystem`;
-                    window.fs = JSON.parse(fileContent);
-                    let freeLs = 0;
-                    while (localStorage.getItem(`ls${freeLs}`)) {
-                        freeLs++;
-                    }
-                    try {
-                        localStorage.setItem(`ls${freeLs}`, JSON.stringify(window.fs));
-                        let bootConfiguration = JSON.parse(localStorage.getItem('bootConfig')) || { title: 'JSOS Boot Loader', entries: [`ls${freeLs}`], timeout: 5 };
-                        localStorage.setItem('bootConfig', JSON.stringify(bootConfiguration));
-                        document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Creating new filesystem 'ls${freeLs}'`, `[ <span class='t'>OK</span> ] Created filesystem 'ls${freeLs}'`);
-                        loadInit(`ls${freeLs}`, 'ls');
-                    } catch (error) {
-                        document.body.innerHTML = document.body.innerHTML.replace(`[ .. ] Creating new filesystem 'ls${freeLs}'`, `[ <span class='f'>NO</span> ] Error creating filesystem 'ls${freeLs}': ${error}`);
-                    }
+        function getBootConfig() {
+            return JSON.parse(localStorage.getItem('bootConfig')) || {
+                title: 'JSOS Boot Loader',
+                entries: [],
+                timeout: 5
+            };
+        }
+        let bootConfig = getBootConfig();
+        const defaultTimeout = bootConfig.timeout || 5;
+
+        function startTimer() {
+            timer = defaultTimeout;
+            timerDisplay.textContent = timer;
+            timerDisplay.parentElement.style.display = "";
+            clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
+                timer--;
+                if (timer <= 0) {
+                    clearInterval(countdownInterval);
+                    bootSelected();
+                } else {
+                    timerDisplay.textContent = timer;
                 }
+            }, 1000);
+        }
+        function stopTimer() {
+            clearInterval(countdownInterval);
+            timerDisplay.textContent = '';
+            timerDisplay.parentElement.style.display = "none";
+        }
+
+        function updateBootMenu() {
+            bootConfig = getBootConfig();
+            bootTitle.textContent = bootConfig.title || 'JSOS Boot Loader';
+            bootMenu.innerHTML = '';
+            if (!bootConfig.entries.length) {
+                bootMenu.innerHTML = `<div class="entry">No bootable filesystems found.</div>`;
+                return;
             }
-            else {
-                document.body.innerHTML = `[ <span class='f'>NO</span> ] Unknown filesystem type '${type}'`;
+            bootConfig.entries.forEach((entry, idx) => {
+                const isSelected = idx === selectedIndex ? 'selected' : '';
+                bootMenu.innerHTML += `<div class="entry ${isSelected}" data-index="${idx}">JSOS at <span style="color:#0ff">/dev/${entry}</span></div>`;
+            });
+        }
+
+        function reloadBootMenu() {
+            bootConfig = getBootConfig();
+            selectedIndex = 0;
+            updateBootMenu();
+            startTimer();
+        }
+
+        async function loadFS(name, type = 'local') {
+            document.body.innerHTML = "";
+            try {
+                let fsData = await getFSData(name, type);
+                window.fs = fsData;
+                let init_file = fsData.contents.find(file => file.name === 'init' && file.type === 'file');
+                if (!init_file) throw new Error('No init file found in FS');
+                await eval(init_file.contents);
+                if (typeof kernel_init === 'function') kernel_init();
+            } catch (error) {
+                document.body.innerText = `[ NO ] Error: ${error}`;
             }
         }
 
-        const config = JSON.parse(localStorage.getItem('bootConfig'));
-        if (config) {
-            var bootMenu = document.querySelector('#boot-opt-menu');
-            bootMenu.innerHTML += `<h2>${config.title || '[ JBL ] JSOS Boot Loader'}</h2>`;
-            bootMenu.innerHTML += config.entries.map(entry => `<div class="entry">JSOS at /dev/${entry}</div>`).join("");
-            if (config.timeout > -1) {
-                let defaultTimeout = setTimeout(() => loadInit(config.entries[0], config.entries[0].endsWith('.json') ? 'r' : 'ls'), config.timeout * 1000);
+        async function getFSData(name, type) {
+            if (type === 'local') {
+                const lsData = localStorage.getItem(name);
+                if (!lsData) throw new Error(`Filesystem '${name}' not found in localStorage.`);
+                return JSON.parse(lsData);
+            } else if (type === 'import') {
+                const resp = await fetch(name);
+                if (!resp.ok) throw new Error(`Failed to fetch ${name}`);
+                const fsData = await resp.json();
+                return saveImportedFS(fsData);
+            } else if (type === 'file') {
+                return saveImportedFS(name);
+            } else {
+                throw new Error('Unknown FS type');
             }
         }
-        else {
-            loadInit(`JFS-r${window.release}.json`, 'r');
+
+        function saveImportedFS(fsData) {
+            let freeLs = 0;
+            while (localStorage.getItem(`ls${freeLs}`)) freeLs++;
+            localStorage.setItem(`ls${freeLs}`, JSON.stringify(fsData));
+            bootConfig.entries.push(`ls${freeLs}`);
+            localStorage.setItem('bootConfig', JSON.stringify(bootConfig));
+            return fsData;
         }
-        window.addEventListener('beforeunload', async (e) => {
-            e.preventDefault();
+
+        function bootSelected() {
+            if (booting) return;
+            booting = true;
+            stopTimer();
+            const entry = bootConfig.entries[selectedIndex];
+            if (!entry) return;
+            loadFS(entry, entry.endsWith('.json') ? 'import' : 'local');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (booting) return;
+            stopTimer();
+            switch (e.key) {
+                case 'ArrowDown':
+                    selectedIndex = Math.min(bootConfig.entries.length - 1, selectedIndex + 1);
+                    updateBootMenu();
+                    break;
+                case 'ArrowUp':
+                    selectedIndex = Math.max(0, selectedIndex - 1);
+                    updateBootMenu();
+                    break;
+                case 'Enter':
+                    bootSelected();
+                    break;
+                case 'i':
+                case 'I':
+                    fileImport.value = '';
+                    fileImport.click();
+                    break;
+                case 'e':
+                case 'E':
+                    exportFS();
+                    break;
+                case 'd':
+                case 'D':
+                    deleteFS();
+                    break;
+                case 'n':
+                case 'N':
+                    createAndBootNewFS();
+                    break;
+                case 'r':
+                case 'R':
+                    reloadBootMenu();
+                    break;
+                case 'Escape':
+                    updateBootMenu();
+                    break;
+            }
+        });
+
+        fileImport.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (evt) {
+                try {
+                    const fsObj = JSON.parse(evt.target.result);
+                    loadFS(fsObj, 'file');
+                } catch (err) {
+                    alert('Invalid JSON FS file.');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function exportFS() {
+            const entry = bootConfig.entries[selectedIndex];
+            if (!entry) return;
+            const data = localStorage.getItem(entry);
+            if (!data) return alert('FS not found in localStorage.');
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${entry}.json`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+
+        function deleteFS() {
+            if (!bootConfig.entries.length) return;
+            const entry = bootConfig.entries[selectedIndex];
+            if (!entry) return;
+            if (!confirm(`Delete filesystem "${entry}"? This cannot be undone.`)) return;
+            localStorage.removeItem(entry);
+            bootConfig.entries.splice(selectedIndex, 1);
+            if (selectedIndex >= bootConfig.entries.length) selectedIndex = Math.max(0, bootConfig.entries.length - 1);
+            localStorage.setItem('bootConfig', JSON.stringify(bootConfig));
+            updateBootMenu();
+        }
+
+        function createAndBootNewFS() {
+            loadFS(`JFS-r${window.release}.json`, 'import');
+        }
+
+        if (bootConfig.entries.length > 0) {
+            updateBootMenu();
+            startTimer();
+        } else {
+            createAndBootNewFS();
+        }
+
+        window.addEventListener('beforeunload', (e) => {
+            if (!window.fs || !window.mps) return;
             let fsName = window.mps.find(mp => mp.on === '/').src;
-            document.body.innerHTML = `[ .. ] Unmounting filesystem ${fsName}`;
-            await localStorage.setItem(fsName, JSON.stringify(window.fs));
+            localStorage.setItem(fsName, JSON.stringify(window.fs));
         });
     </script>
 </body>
