@@ -10,13 +10,15 @@
             background: linear-gradient(135deg, #181c20 0%, #23272e 100%);
             font-family: 'Fira Mono', 'Consolas', 'Courier New', monospace;
             color: #e0e0e0;
-            font-size: 1.4vh;
+            font-size: 4vh;
             margin: 0;
             height: 100vh;
             overflow: hidden;
             overflow-wrap: anywhere;
             white-space: pre-wrap;
             text-align: start;
+	    user-select: none;
+  	    cursor: none;
         }
 
         #boot-container {
@@ -114,6 +116,18 @@
             background: #0ff4;
             border-radius: 6px;
         }
+
+        span.t {
+            color: #00ff00;
+        }
+
+        span.f {
+            color: #ff0000;
+        }
+        
+        span.n {
+            color: #ffff00;
+        }
     </style>
 </head>
 
@@ -125,7 +139,8 @@
         </div>
         <div id="boot-timer">Time left: <span id="timer"></span></div>
         <div id="boot-help">
-            ↑/↓: Select &nbsp; | &nbsp; Enter: Boot &nbsp; | &nbsp; i: Import FS &nbsp; | &nbsp; e: Export FS &nbsp; | &nbsp; d: Delete FS &nbsp; | &nbsp; n: New FS &nbsp; | &nbsp; r: Reload &nbsp; | &nbsp; Esc: Cancel
+            ↑/↓: Select &nbsp; | &nbsp; Enter: Boot &nbsp; | &nbsp; i: Import FS &nbsp; | &nbsp; e: Export FS &nbsp; |
+            &nbsp; d: Delete FS &nbsp; | &nbsp; n: New FS &nbsp; | &nbsp; r: Reload &nbsp; | &nbsp; Esc: Cancel
         </div>
         <input type="file" id="file-import" accept=".json">
     </div>
@@ -203,7 +218,7 @@
                 await eval(init_file.contents);
                 if (typeof kernel_init === 'function') kernel_init();
             } catch (error) {
-                document.body.innerText = `[ NO ] Error: ${error}`;
+                document.body.innerText = `[!] Error: ${error}`;
             }
         }
 
